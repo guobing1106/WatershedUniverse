@@ -289,110 +289,177 @@ fun SandboxTab(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Grid Elevation Headers & 5x5 Grid Section
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(2.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        // View Mode Segmented Control (0 = Grid, 1 = 2D Map Canvas)
+        var viewMode by remember { mutableStateOf(1) }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Button(
+                onClick = { viewMode = 1 },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (viewMode == 1) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    contentColor = if (viewMode == 1) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "流域高程沙盘 (5x5)",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "山地山脊 (上游0行) ➔ 蔚蓝河口 (下游4行)",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (isSimulating) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("正流动至第 ${simulationStep} 行...", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                        }
-                    } else {
-                        Badge(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ) {
-                            Text(" 部署季  ", fontSize = 11.sp)
-                        }
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Map, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("2D 生态沙盘 (Canvas)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
+            }
+            Button(
+                onClick = { viewMode = 0 },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (viewMode == 0) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    contentColor = if (viewMode == 0) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.GridOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("规划数字网格 (Grid)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
 
-                Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-                // Render 5x5 grid cells
-                Column(
+        // Animated Switch between 2D Canvas Map and 5x5 Grid Section
+        AnimatedContent(
+            targetState = viewMode,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+            },
+            label = "view_mode_switch"
+        ) { mode ->
+            if (mode == 1) {
+                // Render the interactive 2D Canvas Map of the watershed
+                WatershedCanvasMap(
+                    grid = grid,
+                    isSimulating = isSimulating,
+                    simulationStep = simulationStep,
+                    selectedCell = selectedCell,
+                    onCellSelected = onCellSelected,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                // Grid Elevation Headers & 5x5 Grid Section
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    elevation = CardDefaults.cardElevation(2.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
-                    for (r in 0 until 5) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Elevation guide marker for each row
-                            val elevText = when (r) {
-                                0 -> "山脊\n500m"
-                                1 -> "山地\n350m"
-                                2 -> "中游\n200m"
-                                3 -> "河谷\n100m"
-                                4 -> "河口\n10m"
-                                else -> ""
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .width(42.dp)
-                                    .height(58.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                        RoundedCornerShape(4.dp)
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Column {
                                 Text(
-                                    text = elevText,
-                                    fontSize = 9.sp,
-                                    lineHeight = 11.sp,
+                                    text = "流域高程沙盘 (5x5)",
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "山地山脊 (上游0行) ➔ 蔚蓝河口 (下游4行)",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                            if (isSimulating) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("正流动至第 ${simulationStep} 行...", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                                }
+                            } else {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ) {
+                                    Text(" 部署季  ", fontSize = 11.sp)
+                                }
+                            }
+                        }
 
-                            // 5 Columns
-                            for (c in 0 until 5) {
-                                val cell = grid.find { it.row == r && it.col == c }
-                                if (cell != null) {
-                                    val isCurrentActiveRow = isSimulating && r == simulationStep
-                                    val isSelected = selectedCell?.row == r && selectedCell?.col == c
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                                    WatershedCellItem(
-                                        cell = cell,
-                                        isSelected = isSelected,
-                                        isActiveSimulationRow = isCurrentActiveRow,
+                        // Render 5x5 grid cells
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            for (r in 0 until 5) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    // Elevation guide marker for each row
+                                    val elevText = when (r) {
+                                        0 -> "山脊\n500m"
+                                        1 -> "山地\n350m"
+                                        2 -> "中游\n200m"
+                                        3 -> "河谷\n100m"
+                                        4 -> "河口\n10m"
+                                        else -> ""
+                                    }
+                                    Box(
                                         modifier = Modifier
-                                            .weight(1f)
+                                            .width(42.dp)
                                             .height(58.dp)
-                                            .clickable(enabled = !isSimulating) {
-                                                onCellSelected(cell)
-                                            }
-                                            .testTag("cell_${r}_${c}")
-                                    )
+                                            .background(
+                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                                RoundedCornerShape(4.dp)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = elevText,
+                                            fontSize = 9.sp,
+                                            lineHeight = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+
+                                    // 5 Columns
+                                    for (c in 0 until 5) {
+                                        val cell = grid.find { it.row == r && it.col == c }
+                                        if (cell != null) {
+                                            val isCurrentActiveRow = isSimulating && r == simulationStep
+                                            val isSelected = selectedCell?.row == r && selectedCell?.col == c
+
+                                            WatershedCellItem(
+                                                cell = cell,
+                                                isSelected = isSelected,
+                                                isActiveSimulationRow = isCurrentActiveRow,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(58.dp)
+                                                    .clickable(enabled = !isSimulating) {
+                                                        onCellSelected(cell)
+                                                    }
+                                                    .testTag("cell_${r}_${c}")
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
